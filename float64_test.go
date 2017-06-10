@@ -61,7 +61,7 @@ func TestL2Norm64(t *testing.T) {
 	test(math.NaN(), Vector64{})
 }
 
-func TestVector64CloneX(t *testing.T) {
+func TestVector64Clone(t *testing.T) {
 	x := Vector64{1.0, 2.0, 3.0}
 	cloneX := x.Clone()
 	x[0] = 4.0
@@ -74,9 +74,19 @@ func TestVector64CloneX(t *testing.T) {
 	}
 }
 
+func TestVector64Fill(t *testing.T) {
+	test := func(expected Vector64, x Vector64, y float64) {
+		if got := x.Fill(y); !eqVector64Normal(expected, got) {
+			t.Errorf("%#v.Fill(%f): expected %f, but got %f", x, y, expected, got)
+		}
+	}
+	test(Vector64{1.0, 1.0, 1.0}, Vector64{1.0, 2.0, 3.0}, 1.0)
+	test(Vector64{}, Vector64{}, 1.0)
+}
+
 func TestVector64MulS(t *testing.T) {
 	test := func(expected Vector64, x Vector64, y float64) {
-		if got := x.Clone(); !eqVector64Normal(expected, got.MulS(y)) {
+		if got := x.Clone().MulS(y); !eqVector64Normal(expected, got) {
 			t.Errorf("%#v.MulS(%f): expected %#v, but got %#v", x, y, expected, got)
 		}
 	}
@@ -86,10 +96,10 @@ func TestVector64MulS(t *testing.T) {
 
 func TestVector64Normalize(t *testing.T) {
 	test := func(expected Vector64, x Vector64) {
-		if got := x.Clone(); !eqVector64Normal(expected, got.Normalize()) {
+		if got := x.Clone().Normalize(); !eqVector64Normal(expected, got) {
 			t.Errorf("%#v.Normalize(): expected %#v, but got %#v", x, expected, got)
 		}
 	}
-	test(Vector64{3.0/5.0, 4.0/5.0}, Vector64{3.0, 4.0})
+	test(Vector64{3.0 / 5.0, 4.0 / 5.0}, Vector64{3.0, 4.0})
 	test(Vector64{}, Vector64{})
 }

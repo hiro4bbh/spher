@@ -5,7 +5,7 @@ import "math"
 // Round float64 x to the specified number of decimal places.
 func Round64(x float64, n int) float64 {
 	shift := math.Pow(10, float64(n))
-	return math.Floor(x * shift + 0.5) / shift
+	return math.Floor(x*shift+0.5) / shift
 }
 
 // Vector64 is a dense float64 vector.
@@ -56,6 +56,14 @@ func (x Vector64) Clone() Vector64 {
 	cloneX := make(Vector64, len(x))
 	copy(cloneX, x)
 	return cloneX
+}
+
+// Fills self with float64 y.
+func (x Vector64) Fill(y float64) Vector64 {
+	for i := 0; i < len(x); i++ {
+		x[i] = y
+	}
+	return x
 }
 
 // Multiply Vector64 x by scalar y.
