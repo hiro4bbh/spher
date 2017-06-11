@@ -1,9 +1,17 @@
 package spher
 
+import "fmt"
 import "math"
+import "sort"
+
+// This can be get as follows: math.Float64Bits(math.NaN()).
+const FLOAT64_NAN_BITS = 0x7ff8000000000001
 
 // Round float64 x to the specified number of decimal places.
 func Round64(x float64, n int) float64 {
+	if math.IsNaN(x) {
+		return x
+	}
 	shift := math.Pow(10, float64(n))
 	return math.Floor(x*shift+0.5) / shift
 }
@@ -13,19 +21,44 @@ func Round64(x float64, n int) float64 {
 type Vector64 []float64
 
 // Compares Vector64 x and y.
+// If either of x or y contains float64 NaN, returns FLOAT64_NAN_BITS.
 // Returns +1 if x is greater than y, -1 if x is smaller than y, otherwise 0.
 func Cmp64(x, y Vector64) int {
+	lmin := len(x)
+	if lmin > len(y) {
+		lmin = len(y)
+	}
+	i := 0
+	s := 0
+	for ; i < lmin; i++ {
+		if math.IsNaN(x[i]) || math.IsNaN(y[i]) {
+			return FLOAT64_NAN_BITS
+		}
+		if s == 0 {
+			if x[i] < y[i] {
+				s = -1
+			} else if x[i] > y[i] {
+				s = +1
+			}
+		}
+	}
+	for ix := i; ix < len(x); ix++ {
+		if math.IsNaN(x[i]) {
+			return FLOAT64_NAN_BITS
+		}
+	}
+	for iy := i; iy < len(y); iy++ {
+		if math.IsNaN(y[i]) {
+			return FLOAT64_NAN_BITS
+		}
+	}
+	if s != 0 {
+		return s
+	}
 	if len(x) < len(y) {
 		return -1
 	} else if len(x) > len(y) {
 		return +1
-	}
-	for i := 0; i < len(x); i++ {
-		if x[i] < y[i] {
-			return -1
-		} else if x[i] > y[i] {
-			return +1
-		}
 	}
 	return 0
 }
@@ -48,6 +81,24 @@ func L2Norm64(x Vector64) float64 {
 		return math.NaN()
 	}
 	return math.Pow(Dot64(x, x), 0.5)
+}
+
+// Apply SparseMatrix64 A to Vector64 x.
+func (y Vector64) Apply(A SparseMatrix64, x Vector64) Vector64 {
+	A.Apply64(y, x)
+	return y
+}
+
+// Apply augumented SparseMatrix64 (t(O, A), t(t(A), O)) to Vector64 x.
+func (y Vector64) ApplyAug(A SparseMatrix64, x Vector64) Vector64 {
+	// (t(O, A), t(t(A), O))t(t(x1), t(x2)) = t(t(Ax2), t(t(A)x1)).
+	if len(y) == A.Nrows()+A.Ncols() && len(y) == len(x) {
+		y[0:A.Nrows()].Apply(A, x[A.Nrows():(A.Nrows()+A.Ncols())])
+		y[A.Nrows():(A.Nrows()+A.Ncols())].Apply(A.T(), x[0:A.Nrows()])
+	} else {
+		y.Fill(math.NaN())
+	}
+	return y
 }
 
 // Returns a clone of Vector64 x.
@@ -86,4 +137,137 @@ func (x Vector64) Round(n int) Vector64 {
 		x[i] = Round64(x[i], n)
 	}
 	return x
+}
+
+// SparseMatrix64 is an interface for a float64 sparse matrix.
+type SparseMatrix64 interface {
+	// Applies self to Vector64 x, and stores the result to Vector64 y.
+	// If any error happens, fill Vector64 y with float64 NaN.
+	Apply64(y, x Vector64)
+	// Returns the number of columns.
+	Ncols() int
+	// Returns the number of rows.
+	Nrows() int
+	// Returns a transposed self.
+	// The transpose states must not be affected by each other.
+	T() SparseMatrix64
+}
+
+// CSRMatrix64 is a float64 Compressed Sparse Row (CSR) Matrix.
+type CSRMatrix64 struct {
+	nrows, ncols int
+	a            []float64
+	ia, ja       []int
+	transposed   bool
+}
+
+// Returns a new *CSRMatrix64 created from row map m.
+func NewCSRMatrix64FromRowMap(nrows, ncols int, m map[int]map[int]float64) *CSRMatrix64 {
+	if !((nrows >= 0) && (ncols >= 0)) {
+		return nil
+	}
+	n := 0
+	for i, mrow := range m {
+		if !((0 <= i) && (i < nrows)) {
+			return nil
+		}
+		n += len(mrow)
+		for j, _ := range mrow {
+			if !((0 <= j) && (j < ncols)) {
+				return nil
+			}
+		}
+	}
+	a := make([]float64, n)
+	ia := make([]int, nrows+1)
+	ia[len(ia)-1] = n
+	ja := make([]int, n)
+	nuseds := 0
+	for i := 0; i < nrows; i++ {
+		mrow := m[i]
+		aStart, aEnd := nuseds, nuseds+len(mrow)
+		ia[i] = aStart
+		for j, _ := range mrow {
+			ja[nuseds] = j
+			nuseds++
+		}
+		sort.Ints(ja[aStart:aEnd])
+		for ai := aStart; ai < aEnd; ai++ {
+			a[ai] = mrow[ja[ai]]
+		}
+	}
+	return &CSRMatrix64{
+		nrows:      nrows,
+		ncols:      ncols,
+		a:          a,
+		ia:         ia,
+		ja:         ja,
+		transposed: false,
+	}
+}
+
+// For interface GoStringer in package fmt.
+// This accepts struct itself and struct pointer, and returns the same string representation.
+// Hence, the string representation is slightly different from one used in package fmt.
+func (A CSRMatrix64) GoString() string {
+	return fmt.Sprintf("%T(nrows:%d, ncols:%d)", A, A.Nrows(), A.Ncols())
+}
+
+// For interface Stringer in package fmt.
+// This is equivalent to method GoString.
+func (A CSRMatrix64) String() string {
+	return A.GoString()
+}
+
+// Applies self to Vector64 x, and stores the result to Vector64 y.
+func (A *CSRMatrix64) Apply64(y, x Vector64) {
+	if !((len(y) == A.Nrows()) && (len(x) == A.Ncols())) {
+		y.Fill(math.NaN())
+		return
+	}
+	y.Fill(0.0)
+	if A.transposed {
+		for i := 0; i < A.nrows; i++ {
+			for ai := A.ia[i]; ai < A.ia[i+1]; ai++ {
+				y[A.ja[ai]] += A.a[ai] * x[i]
+			}
+		}
+	} else {
+		for i := 0; i < A.nrows; i++ {
+			for ai := A.ia[i]; ai < A.ia[i+1]; ai++ {
+				y[i] += A.a[ai] * x[A.ja[ai]]
+			}
+		}
+	}
+}
+
+// Returns the number of columns.
+func (A *CSRMatrix64) Ncols() int {
+	if A.transposed {
+		return A.nrows
+	} else {
+		return A.ncols
+	}
+}
+
+// Returns the number of rows.
+func (A *CSRMatrix64) Nrows() int {
+	if A.transposed {
+		return A.ncols
+	} else {
+		return A.nrows
+	}
+}
+
+// Returns a transposed self.
+// The transpose states are not affected by each other.
+func (A *CSRMatrix64) T() SparseMatrix64 {
+	return &CSRMatrix64{
+		nrows:      A.nrows,
+		ncols:      A.ncols,
+		a:          A.a,
+		ia:         A.ia,
+		ja:         A.ja,
+		transposed: !A.transposed,
+	}
 }

@@ -1,30 +1,41 @@
 package spher
 
+import "fmt"
 import "math"
 import "testing"
 
 const FLOAT64_NORMAL_PRECISION = 12
 
 func eq64Normal(x, y float64) bool {
+	xIsNaN, yIsNaN := math.IsNaN(x), math.IsNaN(y)
+	if xIsNaN || yIsNaN {
+		if xIsNaN && yIsNaN {
+			return true
+		}
+		return false
+	}
 	return Round64(x, FLOAT64_NORMAL_PRECISION) == Round64(y, FLOAT64_NORMAL_PRECISION)
 }
 
 func eqVector64Normal(x, y Vector64) bool {
-	return Cmp64(x.Clone().Round(FLOAT64_NORMAL_PRECISION), x.Clone().Round(FLOAT64_NORMAL_PRECISION)) == 0
+	return Cmp64(x.Clone().Round(FLOAT64_NORMAL_PRECISION), y.Clone().Round(FLOAT64_NORMAL_PRECISION)) == 0
 }
 
 func TestRound64(t *testing.T) {
 	test := func(expected float64, x float64, n int) {
-		if got := Round64(x, n); expected != got {
+		if got := Round64(x, n); !eq64Normal(expected, got) {
 			t.Errorf("Round64(%f, %d): expected %f, but got %f", x, n, expected, got)
 		}
 	}
 	test(1.0, 1.105, 0)
 	test(2.0, 1.605, 0)
+	test(math.NaN(), math.NaN(), 0)
 	test(1.1, 1.1105, 1)
 	test(1.2, 1.1605, 1)
+	test(math.NaN(), math.NaN(), 1)
 	test(0.0, 1.05, -1)
 	test(10.0, 6.05, -1)
+	test(math.NaN(), math.NaN(), -1)
 }
 
 func TestCmp64(t *testing.T) {
@@ -36,8 +47,14 @@ func TestCmp64(t *testing.T) {
 	test(0, Vector64{1.0, 2.0, 3.0}, Vector64{1.0, 2.0, 3.0})
 	test(1, Vector64{1.0, 3.0, 3.0}, Vector64{1.0, 2.0, 3.0})
 	test(-1, Vector64{1.0, 1.0, 3.0}, Vector64{1.0, 2.0, 3.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, math.NaN(), 3.0}, Vector64{1.0, 2.0, 3.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, 2.0, 3.0}, Vector64{1.0, math.NaN(), 3.0})
 	test(1, Vector64{1.0, 2.0, 3.0}, Vector64{1.0, 2.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, math.NaN(), 3.0}, Vector64{1.0, 2.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, 2.0, 3.0}, Vector64{1.0, math.NaN()})
 	test(-1, Vector64{1.0, 2.0}, Vector64{1.0, 2.0, 3.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, math.NaN()}, Vector64{1.0, 2.0, 3.0})
+	test(FLOAT64_NAN_BITS, Vector64{1.0, 2.0}, Vector64{1.0, math.NaN(), 3.0})
 }
 
 func TestDot64(t *testing.T) {
@@ -59,6 +76,30 @@ func TestL2Norm64(t *testing.T) {
 	}
 	test(5.0, Vector64{3.0, 4.0})
 	test(math.NaN(), Vector64{})
+}
+
+func TestVector64ApplyAug(t *testing.T) {
+	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
+		0: map[int]float64{2: 1.0},
+		2: map[int]float64{1: 2.0, 3: 3.0},
+	})
+	x := make(Vector64, A.Nrows()+A.Ncols())
+	x[0] = 2.0
+	x[A.Nrows()+2] = 3.0
+	y := make(Vector64, A.Nrows()+A.Ncols())
+	y.ApplyAug(A, x)
+	expected, got := Vector64{3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.ApplyAug(%#v, %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
+	x.Fill(0.0)
+	x[A.Ncols()] = 2.0
+	x[3] = 3.0
+	y.ApplyAug(A.T(), x)
+	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.ApplyAug(%#v, %#v): expected %#v, but got %#v", A.T(), x, expected, got)
+	}
 }
 
 func TestVector64Clone(t *testing.T) {
@@ -102,4 +143,55 @@ func TestVector64Normalize(t *testing.T) {
 	}
 	test(Vector64{3.0 / 5.0, 4.0 / 5.0}, Vector64{3.0, 4.0})
 	test(Vector64{}, Vector64{})
+}
+
+func TestCSRMatrix64(t *testing.T) {
+	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
+		0: map[int]float64{2: 1.0},
+		2: map[int]float64{1: 2.0, 3: 3.0},
+	})
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%s", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%s\", *CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%v", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%v\", *CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%#v", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%#v\", *CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%s", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%s\", CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%v", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%v\", CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.CSRMatrix64(nrows:4, ncols:5)", fmt.Sprintf("%#v", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%#v\", CSRMatrix64): expected %#v, but got %#v", expected, got)
+	}
+	testApply := func(expected Vector64, A SparseMatrix64) {
+		got := make(Vector64, A.Nrows()*A.Ncols())
+		for j := 0; j < A.Ncols(); j++ {
+			v := make(Vector64, A.Ncols())
+			v[j] = 1.0
+			got[j*A.Nrows():(j+1)*A.Nrows()].Apply(A, v)
+		}
+		if !eqVector64Normal(expected, got) {
+			t.Errorf("NewCSRMatrix64FromRowMap(%#v).Apply64(_, _): expected %#v, but got %#v", A, expected, got)
+		}
+	}
+	testApply(Vector64{
+		0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 2.0, 0.0,
+		1.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 3.0, 0.0,
+		0.0, 0.0, 0.0, 0.0,
+	}, A)
+	testApply(Vector64{
+		0.0, 0.0, 1.0, 0.0, 0.0,
+		0.0, 0.0, 0.0, 0.0, 0.0,
+		0.0, 2.0, 0.0, 3.0, 0.0,
+		0.0, 0.0, 0.0, 0.0, 0.0,
+	}, A.T())
+	testApply(Vector64{}, NewCSRMatrix64FromRowMap(0, 0, map[int]map[int]float64{}))
+	testApply(Vector64{}, NewCSRMatrix64FromRowMap(0, 0, map[int]map[int]float64{}).T())
 }
