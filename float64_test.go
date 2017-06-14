@@ -68,10 +68,10 @@ func TestDot64(t *testing.T) {
 	test(math.NaN(), Vector64{1.0, 2.0, 3.0}, Vector64{})
 }
 
-func TestL2Norm64(t *testing.T) {
+func TestL2norm64(t *testing.T) {
 	test := func(expected float64, x Vector64) {
-		if got := L2Norm64(x); (math.IsNaN(expected) && !math.IsNaN(got)) || (!math.IsNaN(expected) && !eq64Normal(expected, got)) {
-			t.Errorf("L2Norm64(%#v): expected %f, but got %f", x, expected, got)
+		if got := L2norm64(x); (math.IsNaN(expected) && !math.IsNaN(got)) || (!math.IsNaN(expected) && !eq64Normal(expected, got)) {
+			t.Errorf("L2norm64(%#v): expected %f, but got %f", x, expected, got)
 		}
 	}
 	test(5.0, Vector64{3.0, 4.0})
@@ -101,10 +101,24 @@ func TestVector64Fill(t *testing.T) {
 	test(Vector64{}, Vector64{}, 1.0)
 }
 
-func TestVector64MulS(t *testing.T) {
+func TestVector64Madd(t *testing.T) {
+	test := func(expected Vector64, x Vector64, alpha float64, y Vector64) {
+		if got := x.Clone().Madd(alpha, y); !eqVector64Normal(expected, got) {
+			t.Errorf("%#v.Madd(%f, %#v): expected %#v, but got %#v", x, alpha, y, expected, got)
+		}
+	}
+	test(Vector64{7.0, 6.0, 5.0}, Vector64{1.0, 2.0, 3.0}, 2.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{1.0, 2.0, 3.0}, Vector64{1.0, 2.0, 3.0}, 0.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{-5.0, -2.0, 1.0}, Vector64{1.0, 2.0, 3.0}, -2.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{}, Vector64{}, 2.0, Vector64{})
+	test(Vector64{}, Vector64{}, 0.0, Vector64{})
+	test(Vector64{}, Vector64{}, -2.0, Vector64{})
+}
+
+func TestVector64Mul(t *testing.T) {
 	test := func(expected Vector64, x Vector64, y float64) {
-		if got := x.Clone().MulS(y); !eqVector64Normal(expected, got) {
-			t.Errorf("%#v.MulS(%f): expected %#v, but got %#v", x, y, expected, got)
+		if got := x.Clone().Mul(y); !eqVector64Normal(expected, got) {
+			t.Errorf("%#v.Mul(%f): expected %#v, but got %#v", x, y, expected, got)
 		}
 	}
 	test(Vector64{2.0, 4.0, 6.0}, Vector64{1.0, 2.0, 3.0}, 2.0)

@@ -76,7 +76,7 @@ func Dot64(x, y Vector64) float64 {
 }
 
 // Returns L2-norm of Vector64 x.
-func L2Norm64(x Vector64) float64 {
+func L2norm64(x Vector64) float64 {
 	if len(x) == 0 {
 		return math.NaN()
 	}
@@ -105,8 +105,16 @@ func (x Vector64) Fill(y float64) Vector64 {
 	return x
 }
 
-// Multiply Vector64 x by scalar y.
-func (x Vector64) MulS(y float64) Vector64 {
+// Multiply-Add Vector64 x by float64 alpha and Vector64 y, that is, x + alpha*y.
+func (x Vector64) Madd(alpha float64, y Vector64) Vector64 {
+	for i := 0; i < len(x); i++ {
+		x[i] += alpha * y[i]
+	}
+	return x
+}
+
+// Multiply Vector64 x by float64 y.
+func (x Vector64) Mul(y float64) Vector64 {
 	for i := 0; i < len(x); i++ {
 		x[i] *= y
 	}
@@ -115,7 +123,7 @@ func (x Vector64) MulS(y float64) Vector64 {
 
 // Normalize Vector64 x.
 func (x Vector64) Normalize() Vector64 {
-	x.MulS(1.0 / L2Norm64(x))
+	x.Mul(1.0 / L2norm64(x))
 	return x
 }
 
