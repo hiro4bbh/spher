@@ -78,30 +78,6 @@ func TestL2Norm64(t *testing.T) {
 	test(math.NaN(), Vector64{})
 }
 
-func TestVector64ApplyAug(t *testing.T) {
-	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
-		0: map[int]float64{2: 1.0},
-		2: map[int]float64{1: 2.0, 3: 3.0},
-	})
-	x := make(Vector64, A.Nrows()+A.Ncols())
-	x[0] = 2.0
-	x[A.Nrows()+2] = 3.0
-	y := make(Vector64, A.Nrows()+A.Ncols())
-	y.ApplyAug(A, x)
-	expected, got := Vector64{3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0}, y
-	if !eqVector64Normal(expected, got) {
-		t.Errorf("Vector64.ApplyAug(%#v, %#v): expected %#v, but got %#v", A, x, expected, got)
-	}
-	x.Fill(0.0)
-	x[A.Ncols()] = 2.0
-	x[3] = 3.0
-	y.ApplyAug(A.T(), x)
-	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
-	if !eqVector64Normal(expected, got) {
-		t.Errorf("Vector64.ApplyAug(%#v, %#v): expected %#v, but got %#v", A.T(), x, expected, got)
-	}
-}
-
 func TestVector64Clone(t *testing.T) {
 	x := Vector64{1.0, 2.0, 3.0}
 	cloneX := x.Clone()
@@ -194,4 +170,28 @@ func TestCSRMatrix64(t *testing.T) {
 	}, A.T())
 	testApply(Vector64{}, NewCSRMatrix64FromRowMap(0, 0, map[int]map[int]float64{}))
 	testApply(Vector64{}, NewCSRMatrix64FromRowMap(0, 0, map[int]map[int]float64{}).T())
+}
+
+func TestAugmentedSparseMatrix64(t *testing.T) {
+	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
+		0: map[int]float64{2: 1.0},
+		2: map[int]float64{1: 2.0, 3: 3.0},
+	})
+	x := make(Vector64, A.Nrows()+A.Ncols())
+	x[0] = 2.0
+	x[A.Nrows()+2] = 3.0
+	y := make(Vector64, A.Nrows()+A.Ncols())
+	y.Apply(AugmentSparseMatrix64(A), x)
+	expected, got := Vector64{3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v), %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
+	x.Fill(0.0)
+	x[A.Ncols()] = 2.0
+	x[3] = 3.0
+	y.Apply(AugmentSparseMatrix64(A.T()), x)
+	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v.T()), %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
 }

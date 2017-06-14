@@ -89,18 +89,6 @@ func (y Vector64) Apply(A SparseMatrix64, x Vector64) Vector64 {
 	return y
 }
 
-// Apply augumented SparseMatrix64 (t(O, A), t(t(A), O)) to Vector64 x.
-func (y Vector64) ApplyAug(A SparseMatrix64, x Vector64) Vector64 {
-	// (t(O, A), t(t(A), O))t(t(x1), t(x2)) = t(t(Ax2), t(t(A)x1)).
-	if len(y) == A.Nrows()+A.Ncols() && len(y) == len(x) {
-		y[0:A.Nrows()].Apply(A, x[A.Nrows():(A.Nrows()+A.Ncols())])
-		y[A.Nrows():(A.Nrows()+A.Ncols())].Apply(A.T(), x[0:A.Nrows()])
-	} else {
-		y.Fill(math.NaN())
-	}
-	return y
-}
-
 // Returns a clone of Vector64 x.
 // A clone is not affected by changes on x, and x is not affected by its clones.
 func (x Vector64) Clone() Vector64 {
@@ -151,6 +139,46 @@ type SparseMatrix64 interface {
 	// Returns a transposed self.
 	// The transpose states must not be affected by each other.
 	T() SparseMatrix64
+}
+
+// AugmentedSparseMatrix64 is a type for augmented SparseMatrix64.
+type AugmentedSparseMatrix64 struct {
+	a SparseMatrix64
+}
+
+// Returns augmented matrix of SparseMatrix64 A.
+// Augumented matrix of A is defined as (t(O, A), t(t(A), O)).
+func AugmentSparseMatrix64(A SparseMatrix64) *AugmentedSparseMatrix64 {
+	return &AugmentedSparseMatrix64{a: A}
+}
+
+// Applies self to Vector64 x, and stores the result to Vector64 y.
+// If any error happens, fill Vector64 y with float64 NaN.
+func (A *AugmentedSparseMatrix64) Apply64(y, x Vector64) {
+	if !((len(y) == A.Nrows()) && (len(x) == A.Ncols())) {
+		y.Fill(math.NaN())
+		return
+	}
+	y.Fill(0.0)
+	// (t(O, A), t(t(A), O))t(t(x1), t(x2)) = t(t(Ax2), t(t(A)x1)).
+	y[0:A.a.Nrows()].Apply(A.a, x[A.a.Nrows():(A.a.Nrows()+A.a.Ncols())])
+	y[A.a.Nrows():(A.a.Nrows()+A.a.Ncols())].Apply(A.a.T(), x[0:A.a.Nrows()])
+}
+
+// Returns the number of columns.
+func (A *AugmentedSparseMatrix64) Ncols() int {
+	return A.a.Nrows() + A.a.Ncols()
+}
+
+// Returns the number of rows.
+func (A *AugmentedSparseMatrix64) Nrows() int {
+	return A.a.Nrows() + A.a.Ncols()
+}
+
+// Returns a transposed self.
+// The transpose states are not affected by each other.
+func (A *AugmentedSparseMatrix64) T() SparseMatrix64 {
+	return &AugmentedSparseMatrix64{a: A.a.T()}
 }
 
 // CSRMatrix64 is a float64 Compressed Sparse Row (CSR) Matrix.
@@ -220,6 +248,7 @@ func (A CSRMatrix64) String() string {
 }
 
 // Applies self to Vector64 x, and stores the result to Vector64 y.
+// If any error happens, fill Vector64 y with float64 NaN.
 func (A *CSRMatrix64) Apply64(y, x Vector64) {
 	if !((len(y) == A.Nrows()) && (len(x) == A.Ncols())) {
 		y.Fill(math.NaN())
