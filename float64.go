@@ -192,6 +192,34 @@ func (A *AugmentedSparseMatrix64) T() SparseMatrix64 {
 	return &AugmentedSparseMatrix64{a: A.a.T()}
 }
 
+// SymmetrizedMatrix64 is a type for t(A)A.
+type SymmetrizedMatrix64 struct {
+	a SparseMatrix64
+}
+
+// Applies self to Vector64 x, and stores the result to Vector64 y.
+// If any error happens, fill Vector64 y with float64 NaN.
+func (A *SymmetrizedMatrix64) Apply64(y, x Vector64) {
+	z := make(Vector64, A.a.Nrows())
+	z.Apply(A.a, x)
+	y.Apply(A.a.T(), z)
+}
+
+// Returns the number of columns.
+func (A *SymmetrizedMatrix64) Ncols() int {
+	return A.a.Ncols()
+}
+
+// Returns the number of rows.
+func (A *SymmetrizedMatrix64) Nrows() int {
+	return A.a.Ncols()
+}
+
+// Returns a transposed self, that is, returns self.
+func (A *SymmetrizedMatrix64) T() SparseMatrix64 {
+	return A
+}
+
 // CSRMatrix64 is a float64 Compressed Sparse Row (CSR) Matrix.
 type CSRMatrix64 struct {
 	nrows, ncols int
@@ -334,6 +362,16 @@ func NewMatrix64I(n int) *Matrix64 {
 		I.Elems()[i+i*I.Nrows()] = 1.0
 	}
 	return I
+}
+
+// Returns a dense Matrix64 of SparseMatrix64.
+func NewMatrix64FromSparseMatrix64(A SparseMatrix64) *Matrix64 {
+	denseA := NewMatrix64(A.Nrows(), A.Ncols())
+	x := make(Vector64, A.Ncols())
+	for j := 0; j < A.Ncols(); j++ {
+		denseA.Elems()[j*A.Nrows():(j+1)*A.Nrows()].Apply(A, x)
+	}
+	return denseA
 }
 
 // For interface GoStringer in package fmt.

@@ -19,6 +19,13 @@ func eqVector64Normal(x, y Vector64) bool {
 	return Cmp64(x.Clone().Round(FLOAT64_NORMAL_PRECISION), y.Clone().Round(FLOAT64_NORMAL_PRECISION)) == 0
 }
 
+func eqMatrix64Normal(A, B *Matrix64) bool {
+	if !((A.Nrows() == B.Nrows()) && (A.Ncols() == B.Ncols())) {
+		return false
+	}
+	return eqVector64Normal(A.Elems(), B.Elems())
+}
+
 func TestRound64(t *testing.T) {
 	test := func(expected float64, x float64, n int) {
 		if got := Round64(x, n); !eq64Normal(expected, got) {
@@ -154,6 +161,30 @@ func TestAugmentedSparseMatrix64(t *testing.T) {
 	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
 	if !eqVector64Normal(expected, got) {
 		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v.T()), %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
+}
+
+func TestSymmetrizedMatrix64(t *testing.T) {
+	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
+		0: map[int]float64{2: 1.0},
+		2: map[int]float64{1: 2.0, 3: 3.0},
+	})
+	denseA := NewMatrix64FromSparseMatrix64(A)
+	tdenseAdenseA := denseA.T().(*Matrix64).Compose(denseA)
+	tAA := &SymmetrizedMatrix64{A}
+	dense_tAA := NewMatrix64FromSparseMatrix64(tAA)
+	if !eqMatrix64Normal(tdenseAdenseA, dense_tAA) {
+		t.Fatalf("unexpected t(dense(A))dense(A) != dense(t(A)A): t(dense(A))dense(A)=%#v,\ndense(t(A)*A)=%#v", tdenseAdenseA, dense_tAA)
+	}
+	z1, z2 := make(Vector64, tAA.Nrows()), make(Vector64, tAA.Nrows())
+	for i := 0; i < A.Nrows(); i++ {
+		for j := 0; j < A.Ncols(); j++ {
+			y, x := make(Vector64, tAA.Nrows()), make(Vector64, tAA.Ncols())
+			y[i], x[j] = 1.0, 1.0
+			if expected, got := Dot64(y, z1.Apply(tdenseAdenseA, x)), Dot64(y, z2.Apply(dense_tAA, x)); expected != got {
+				t.Errorf("(t(A)A)[%d,%d]: expected %#v, but got %#v", i, j, expected, got)
+			}
+		}
 	}
 }
 
