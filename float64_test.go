@@ -270,7 +270,7 @@ func TestMatrix64(t *testing.T) {
 			y, x := make(Vector64, A.Nrows()), make(Vector64, A.Ncols())
 			y[i], x[j] = 1.0, 1.0
 			ty.Apply(A, x)
-			if expected, got := float64(i + j*A.Nrows()), Dot64(y, ty); !eq64Normal(expected, got) {
+			if expected, got := float64(i+j*A.Nrows()), Dot64(y, ty); !eq64Normal(expected, got) {
 				t.Errorf("%#v.Dot(z.Apply(%#v, %#v)): expected %#v, but got %#v", y, A, x, expected, got)
 			}
 		}
@@ -287,7 +287,7 @@ func TestMatrix64(t *testing.T) {
 			y, x := make(Vector64, tA.Nrows()), make(Vector64, tA.Ncols())
 			y[i], x[j] = 1.0, 1.0
 			tx.Apply(tA, x)
-			if expected, got := float64(j + i*A.Nrows()), Dot64(y, tx); !eq64Normal(expected, got) {
+			if expected, got := float64(j+i*A.Nrows()), Dot64(y, tx); !eq64Normal(expected, got) {
 				t.Errorf("%#v.Dot(z.Apply(%#v, %#v)): expected %#v, but got %#v", y, tA, x, expected, got)
 			}
 		}
@@ -336,5 +336,36 @@ func TestNewMatrixI64(t *testing.T) {
 	}
 	if expected, got := I0.Ncols(), 0; expected != got {
 		t.Errorf("I0.Ncols(): expected #v, but got %#v", expected, got)
+	}
+}
+
+func TestNewSymmetricTridiagonalMatrix64(t *testing.T) {
+	diagT := Vector64{1.0, 2.0, 3.0, 4.0, 5.0}
+	sdiagT := Vector64{6.0, 7.0, 8.0, 9.0}
+	T := NewSymmetricTridiagonalMatrix64(diagT, sdiagT)
+	if T.Nrows() != len(diagT) {
+		t.Fatalf("T.Nrows(): expected %#v, but got %#v", T.Nrows(), len(diagT))
+	}
+	if T.Ncols() != len(diagT) {
+		t.Fatalf("T.Ncols(): expected %#v, but got %#v", T.Nrows(), len(diagT))
+	}
+	z := make(Vector64, T.Nrows())
+	for i := 0; i < T.Nrows(); i++ {
+		for j := 0; j < T.Ncols(); j++ {
+			y, x := make(Vector64, T.Nrows()), make(Vector64, T.Ncols())
+			y[i], x[j] = 1.0, 1.0
+			expected := 0.0
+			if i == j {
+				expected = diagT[i]
+			} else if i == j+1 {
+				expected = sdiagT[j]
+			} else if i+1 == j {
+				expected = sdiagT[i]
+			}
+			got := Dot64(y, z.Apply(T, x))
+			if expected != got {
+				t.Errorf("T[%d,%d]: expected %#v, but got %#v", i, j, expected, got)
+			}
+		}
 	}
 }

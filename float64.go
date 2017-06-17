@@ -5,6 +5,7 @@ import "math"
 import "sort"
 
 // Precisions for float64.
+const FLOAT64_COARSER_PRECISION = 6
 const FLOAT64_NORMAL_PRECISION = 12
 
 // This can be get as follows: math.Float64Bits(math.NaN()).
@@ -364,6 +365,22 @@ func NewMatrix64I(n int) *Matrix64 {
 	return I
 }
 
+// Returns a new order-n symmetric tridiagonal Matrix64.
+// If len(sdiag) is not len(sdiag) - 1, returns 0x0 Matrix64.
+func NewSymmetricTridiagonalMatrix64(diag, sdiag Vector64) *Matrix64 {
+	if len(sdiag) != len(diag)-1 {
+		return NewMatrix64(0, 0)
+	}
+	T := NewMatrix64(len(diag), len(diag))
+	for i := 0; i < len(sdiag); i++ {
+		T.Elems()[i+i*T.Nrows()] = diag[i]
+		T.Elems()[(i+1)+i*T.Nrows()] = sdiag[i]
+		T.Elems()[i+(i+1)*T.Nrows()] = sdiag[i]
+	}
+	T.Elems()[(len(diag)-1)+(len(diag)-1)*T.Nrows()] = diag[len(diag)-1]
+	return T
+}
+
 // Returns a dense Matrix64 of SparseMatrix64.
 func NewMatrix64FromSparseMatrix64(A SparseMatrix64) *Matrix64 {
 	denseA := NewMatrix64(A.Nrows(), A.Ncols())
@@ -441,11 +458,11 @@ func (A *Matrix64) Nrows() int {
 // Returns the sliced columns.
 // If the range is out of bound, returns 0x0 Matrix64.
 func (A *Matrix64) SlicedColumns(j, n int) *Matrix64 {
-	if !((0 <= j) && (j <= j + n) && (j + n <= A.Ncols())) {
+	if !((0 <= j) && (j <= j+n) && (j+n <= A.Ncols())) {
 		return NewMatrix64(0, 0)
 	}
 	return &Matrix64{
-		elems: A.Elems()[j*A.Nrows():(j+n)*A.Nrows()],
+		elems: A.Elems()[j*A.Nrows() : (j+n)*A.Nrows()],
 		nrows: A.Nrows(),
 		ncols: n,
 	}
