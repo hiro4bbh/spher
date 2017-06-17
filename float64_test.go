@@ -4,8 +4,6 @@ import "fmt"
 import "math"
 import "testing"
 
-const FLOAT64_NORMAL_PRECISION = 12
-
 func eq64Normal(x, y float64) bool {
 	xIsNaN, yIsNaN := math.IsNaN(x), math.IsNaN(y)
 	if xIsNaN || yIsNaN {
@@ -135,6 +133,30 @@ func TestVector64Normalize(t *testing.T) {
 	test(Vector64{}, Vector64{})
 }
 
+func TestAugmentedSparseMatrix64(t *testing.T) {
+	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
+		0: map[int]float64{2: 1.0},
+		2: map[int]float64{1: 2.0, 3: 3.0},
+	})
+	x := make(Vector64, A.Nrows()+A.Ncols())
+	x[0] = 2.0
+	x[A.Nrows()+2] = 3.0
+	y := make(Vector64, A.Nrows()+A.Ncols())
+	y.Apply(AugmentSparseMatrix64(A), x)
+	expected, got := Vector64{3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v), %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
+	x.Fill(0.0)
+	x[A.Ncols()] = 2.0
+	x[3] = 3.0
+	y.Apply(AugmentSparseMatrix64(A.T()), x)
+	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
+	if !eqVector64Normal(expected, got) {
+		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v.T()), %#v): expected %#v, but got %#v", A, x, expected, got)
+	}
+}
+
 func TestCSRMatrix64(t *testing.T) {
 	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
 		0: map[int]float64{2: 1.0},
@@ -186,26 +208,102 @@ func TestCSRMatrix64(t *testing.T) {
 	testApply(Vector64{}, NewCSRMatrix64FromRowMap(0, 0, map[int]map[int]float64{}).T())
 }
 
-func TestAugmentedSparseMatrix64(t *testing.T) {
-	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
-		0: map[int]float64{2: 1.0},
-		2: map[int]float64{1: 2.0, 3: 3.0},
-	})
-	x := make(Vector64, A.Nrows()+A.Ncols())
-	x[0] = 2.0
-	x[A.Nrows()+2] = 3.0
-	y := make(Vector64, A.Nrows()+A.Ncols())
-	y.Apply(AugmentSparseMatrix64(A), x)
-	expected, got := Vector64{3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0}, y
-	if !eqVector64Normal(expected, got) {
-		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v), %#v): expected %#v, but got %#v", A, x, expected, got)
+func TestMatrix64(t *testing.T) {
+	A := NewMatrix64(4, 5)
+	for i := 0; i < A.Nrows(); i++ {
+		for j := 0; j < A.Ncols(); j++ {
+			A.Elems()[i+j*A.Nrows()] = float64(i + j*A.Nrows())
+		}
 	}
-	x.Fill(0.0)
-	x[A.Ncols()] = 2.0
-	x[3] = 3.0
-	y.Apply(AugmentSparseMatrix64(A.T()), x)
-	expected, got = Vector64{0.0, 0.0, 2.0, 0.0, 0.0, 0.0, 0.0, 9.0, 0.0}, y
-	if !eqVector64Normal(expected, got) {
-		t.Errorf("Vector64.Apply(AugmentSparseMatrix64(%#v.T()), %#v): expected %#v, but got %#v", A, x, expected, got)
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%s", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%s\", *Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%v", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%v\", *Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%#v", A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%#v\", *Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%s", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%s\", Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%v", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%v\", Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%#v", *A); expected != got {
+		t.Errorf("fmt.Sprintf(\"%%#v\", Matrix64): expected %#v, but got %#v", expected, got)
+	}
+	ty, tx := make(Vector64, A.Nrows()), make(Vector64, A.Ncols())
+	for i := 0; i < A.Nrows(); i++ {
+		for j := 0; j < A.Ncols(); j++ {
+			y, x := make(Vector64, A.Nrows()), make(Vector64, A.Ncols())
+			y[i], x[j] = 1.0, 1.0
+			ty.Apply(A, x)
+			if expected, got := float64(i + j*A.Nrows()), Dot64(y, ty); !eq64Normal(expected, got) {
+				t.Errorf("%#v.Dot(z.Apply(%#v, %#v)): expected %#v, but got %#v", y, A, x, expected, got)
+			}
+		}
+	}
+	tA := A.T().(*Matrix64)
+	if tA.Nrows() != A.Ncols() {
+		t.Errorf("unexpected tA.Nrows() != A.Ncols()")
+	}
+	if tA.Ncols() != A.Nrows() {
+		t.Errorf("unexpected tA.Ncols() != A.Nrows()")
+	}
+	for i := 0; i < tA.Nrows(); i++ {
+		for j := 0; j < tA.Ncols(); j++ {
+			y, x := make(Vector64, tA.Nrows()), make(Vector64, tA.Ncols())
+			y[i], x[j] = 1.0, 1.0
+			tx.Apply(tA, x)
+			if expected, got := float64(j + i*A.Nrows()), Dot64(y, tx); !eq64Normal(expected, got) {
+				t.Errorf("%#v.Dot(z.Apply(%#v, %#v)): expected %#v, but got %#v", y, tA, x, expected, got)
+			}
+		}
+	}
+	C := tA.Compose(A)
+	if C.Nrows() != tA.Nrows() {
+		t.Errorf("unexpected C.Nrows() != tA.Nrows()")
+	}
+	if C.Ncols() != A.Ncols() {
+		t.Errorf("unexpected C.Ncols() != A.Ncols()")
+	}
+	for i := 0; i < C.Nrows(); i++ {
+		for j := 0; j < C.Ncols(); j++ {
+			y, x := make(Vector64, C.Nrows()), make(Vector64, C.Ncols())
+			y[i], x[j] = 1.0, 1.0
+			tx.Apply(tA, x)
+			if expected, got := Dot64(A.Elems()[i*A.Nrows():(i+1)*A.Nrows()], A.Elems()[j*A.Nrows():(j+1)*A.Nrows()]), C.Elems()[i+j*C.Ncols()]; !eq64Normal(expected, got) {
+				t.Errorf("%#v.Dot(z.Apply(%#v, %#v)): expected %#v, but got %#v", y, C, x, expected, got)
+			}
+		}
+	}
+}
+
+func TestNewMatrixI64(t *testing.T) {
+	I5 := NewMatrix64I(5)
+	if expected, got := I5.Nrows(), 5; expected != got {
+		t.Errorf("I5.Nrows(): expected #v, but got %#v", expected, got)
+	}
+	if expected, got := I5.Ncols(), 5; expected != got {
+		t.Errorf("I5.Ncols(): expected #v, but got %#v", expected, got)
+	}
+	for i := 0; i < I5.Nrows(); i++ {
+		for j := 0; j < I5.Ncols(); j++ {
+			expected := 0.0
+			if i == j {
+				expected = 1.0
+			}
+			if got := I5.Elems()[i+j*I5.Ncols()]; !eq64Normal(expected, got) {
+				t.Errorf("I5[%d,%d]: expected %#v, but got %#v", i, j, expected, got)
+			}
+		}
+	}
+	I0 := NewMatrix64I(0)
+	if expected, got := I0.Nrows(), 0; expected != got {
+		t.Errorf("I0.Nrows(): expected #v, but got %#v", expected, got)
+	}
+	if expected, got := I0.Ncols(), 0; expected != got {
+		t.Errorf("I0.Ncols(): expected #v, but got %#v", expected, got)
 	}
 }

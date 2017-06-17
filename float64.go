@@ -4,6 +4,9 @@ import "fmt"
 import "math"
 import "sort"
 
+// Precisions for float64.
+const FLOAT64_NORMAL_PRECISION = 12
+
 // This can be get as follows: math.Float64Bits(math.NaN()).
 const FLOAT64_NAN_BITS = 0x7ff8000000000001
 
@@ -105,7 +108,7 @@ func (x Vector64) Fill(y float64) Vector64 {
 	return x
 }
 
-// Multiply-Add Vector64 x by float64 alpha and Vector64 y, that is, x + alpha*y.
+// Multiply-add Vector64 x by float64 alpha and Vector64 y, that is, x + alpha*y.
 func (x Vector64) Madd(alpha float64, y Vector64) Vector64 {
 	for i := 0; i < len(x); i++ {
 		x[i] += alpha * y[i]
@@ -307,4 +310,121 @@ func (A *CSRMatrix64) T() SparseMatrix64 {
 		ja:         A.ja,
 		transposed: !A.transposed,
 	}
+}
+
+// Matrix64 is a dense column-major float64 matrix. Unless specified, methods return self.
+type Matrix64 struct {
+	elems        Vector64
+	nrows, ncols int
+}
+
+// Returns a new Matrix64.
+func NewMatrix64(nrows, ncols int) *Matrix64 {
+	return &Matrix64{
+		elems: make(Vector64, nrows*ncols),
+		nrows: nrows,
+		ncols: ncols,
+	}
+}
+
+// Returns a new order-n identity Matrix64.
+func NewMatrix64I(n int) *Matrix64 {
+	I := NewMatrix64(n, n)
+	for i := 0; i < n; i++ {
+		I.Elems()[i+i*I.Nrows()] = 1.0
+	}
+	return I
+}
+
+// For interface GoStringer in package fmt.
+// This accepts struct itself and struct pointer, and returns the same string representation.
+// Hence, the string representation is slightly different from one used in package fmt.
+func (A Matrix64) GoString() string {
+	return fmt.Sprintf("%T(nrows:%d, ncols:%d)", A, A.Nrows(), A.Ncols())
+}
+
+// For interface Stringer in package fmt.
+// This is equivalent to method GoString.
+func (A Matrix64) String() string {
+	return A.GoString()
+}
+
+// Applies self to Vector64 x, and stores the result to Vector64 y.
+// If any error happens, fill Vector64 y with float64 NaN.
+func (A *Matrix64) Apply64(y, x Vector64) {
+	if !((len(y) == A.Nrows()) && (len(x) == A.Ncols())) {
+		y.Fill(math.NaN())
+		return
+	}
+	m, n := A.Nrows(), A.Ncols()
+	for i := 0; i < m; i++ {
+		s := 0.0
+		for j := 0; j < n; j++ {
+			s += A.elems[i+j*m] * x[j]
+		}
+		y[i] = s
+	}
+}
+
+// Returns the result of A*B.
+// If any error happens, returns 0x0-Matrix64.
+func (A *Matrix64) Compose(B *Matrix64) *Matrix64 {
+	if A.Ncols() != B.Nrows() {
+		return NewMatrix64(0, 0)
+	}
+	C := NewMatrix64(A.Nrows(), B.Ncols())
+	for i := 0; i < C.Nrows(); i++ {
+		for j := 0; j < C.Ncols(); j++ {
+			s := 0.0
+			for k := 0; k < A.Ncols(); k++ {
+				s += A.Elems()[i+k*A.Nrows()] * B.Elems()[k+j*B.Nrows()]
+			}
+			C.Elems()[i+j*C.Nrows()] = s
+		}
+	}
+	return C
+}
+
+// Returns the underlying Vector64.
+func (A *Matrix64) Elems() Vector64 {
+	return A.elems
+}
+
+// Returns the number of columns.
+func (A *Matrix64) Ncols() int {
+	return A.ncols
+}
+
+// Returns the number of rows.
+func (A *Matrix64) Nrows() int {
+	return A.nrows
+}
+
+// Returns the sliced columns.
+// If the range is out of bound, returns 0x0 Matrix64.
+func (A *Matrix64) SlicedColumns(j, n int) *Matrix64 {
+	if !((0 <= j) && (j <= j + n) && (j + n <= A.Ncols())) {
+		return NewMatrix64(0, 0)
+	}
+	return &Matrix64{
+		elems: A.Elems()[j*A.Nrows():(j+n)*A.Nrows()],
+		nrows: A.Nrows(),
+		ncols: n,
+	}
+}
+
+// Returns a copy of the transposed self.
+func (A *Matrix64) T() SparseMatrix64 {
+	tA := &Matrix64{
+		elems: make(Vector64, len(A.elems)),
+		nrows: A.ncols,
+		ncols: A.nrows,
+	}
+	m, n := A.Nrows(), A.Ncols()
+	for i := 0; i < m; i++ {
+		for j := 0; j < n; j++ {
+			tA.elems[j+i*n] = A.elems[i+j*m]
+		}
+	}
+	return tA
 }
