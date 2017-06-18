@@ -5,7 +5,7 @@ import "math"
 import "sort"
 
 // Precisions for float64.
-const FLOAT64_COARSER_PRECISION = 6
+const FLOAT64_COARSER_PRECISION = 9
 const FLOAT64_NORMAL_PRECISION = 12
 
 // This can be get as follows: math.Float64Bits(math.NaN()).

@@ -15,6 +15,17 @@ func eq64Normal(x, y float64) bool {
 	return Round64(x, FLOAT64_NORMAL_PRECISION) == Round64(y, FLOAT64_NORMAL_PRECISION)
 }
 
+func eqVector64Coarser(x, y Vector64) bool {
+	return Cmp64(x.Clone().Round(FLOAT64_COARSER_PRECISION), y.Clone().Round(FLOAT64_COARSER_PRECISION)) == 0
+}
+
+func eqMatrix64Coarser(A, B *Matrix64) bool {
+	if !((A.Nrows() == B.Nrows()) && (A.Ncols() == B.Ncols())) {
+		return false
+	}
+	return eqVector64Coarser(A.Elems(), B.Elems())
+}
+
 func eqVector64Normal(x, y Vector64) bool {
 	return Cmp64(x.Clone().Round(FLOAT64_NORMAL_PRECISION), y.Clone().Round(FLOAT64_NORMAL_PRECISION)) == 0
 }

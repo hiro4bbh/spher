@@ -1,2 +1,2 @@
-// Package spher provides sparse matrix functions.
+// Package spher provides sparse matrix functionalities.
 package spher
