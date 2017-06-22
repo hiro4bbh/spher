@@ -7,8 +7,10 @@ import "sort"
 import "sync"
 
 // Precisions for float64.
-const FLOAT64_COARSER_PRECISION = 9
-const FLOAT64_NORMAL_PRECISION = 12
+const (
+	FLOAT64_COARSER_PRECISION = 9
+	FLOAT64_NORMAL_PRECISION = 12
+)
 
 // This can be get as follows: math.Float64Bits(math.NaN()).
 const FLOAT64_NAN_BITS = 0x7ff8000000000001
@@ -87,6 +89,16 @@ func L2norm64(x Vector64) float64 {
 		return math.NaN()
 	}
 	return math.Pow(Dot64(x, x), 0.5)
+}
+
+// Swap Vector64 x and y.
+// If the length of x is not equal to the one of y, nothing is changed.
+func Swap64(x, y Vector64) {
+	if len(x) == len(y) {
+		for i := 0; i < len(x); i++ {
+			x[i], y[i] = y[i], x[i]
+		}
+	}
 }
 
 // Apply SparseMatrix64 A to Vector64 x.
@@ -518,4 +530,26 @@ func (A *Matrix64) T() SparseMatrix64 {
 		}
 	}
 	return tA
+}
+
+// Matrix64WithColumnValues is a type for sorting the columns of A with ColValues.
+type Matrix64WithColumnValues struct {
+	A *Matrix64
+	ColValues Vector64
+}
+
+// For sort.Interface.
+func (mcv *Matrix64WithColumnValues) Len() int {
+	return mcv.A.Ncols()
+}
+
+// For sort.Interface.
+func (mcv *Matrix64WithColumnValues) Less(i, j int) bool {
+	return mcv.ColValues[i] < mcv.ColValues[j]
+}
+
+// For sort.Interface.
+func (mcv *Matrix64WithColumnValues) Swap(i, j int) {
+	mcv.ColValues[i], mcv.ColValues[j] = mcv.ColValues[j], mcv.ColValues[i]
+	Swap64(mcv.A.SlicedColumns(i,1).Elems(), mcv.A.SlicedColumns(j, 1).Elems())
 }

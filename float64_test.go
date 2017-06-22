@@ -2,6 +2,7 @@ package spher
 
 import "fmt"
 import "math"
+import "sort"
 import "testing"
 
 func eq64Coarser(x, y float64) bool {
@@ -103,6 +104,18 @@ func TestL2norm64(t *testing.T) {
 	}
 	test(5.0, Vector64{3.0, 4.0})
 	test(math.NaN(), Vector64{})
+}
+
+func TestSwap64(t *testing.T) {
+	aorig, borig := Vector64{1.0, 2.0, 3.0}, Vector64{4.0, 5.0, 6.0}
+	a, b := aorig.Clone(), borig.Clone()
+	Swap64(a, b)
+	if expected, got := borig, a; Cmp64(expected, got) != 0 {
+		t.Errorf("Swap64(%#v, %#v): expected %#v as a, but got %#v\n", aorig, borig, expected, got)
+	}
+	if expected, got := aorig, b; Cmp64(expected, got) != 0 {
+		t.Errorf("Swap64(%#v, %#v): expected %#v as b, but got %#v\n", aorig, borig, expected, got)
+	}
 }
 
 func TestVector64Clone(t *testing.T) {
@@ -389,5 +402,22 @@ func TestNewSymmetricTridiagonalMatrix64(t *testing.T) {
 				t.Errorf("T[%d,%d]: expected %#v, but got %#v", i, j, expected, got)
 			}
 		}
+	}
+}
+
+func TestMatrix64WithColumnValues(t *testing.T) {
+	colValues := Vector64{4.5, 4.5, 2.5, 1.5, 5.5}
+	A := NewMatrix64I(len(colValues))
+	Aexpected := NewMatrix64(A.Nrows(), A.Ncols())
+	Aexpected.Elems()[3+0*Aexpected.Nrows()] = 1.0
+	Aexpected.Elems()[2+1*Aexpected.Nrows()] = 1.0
+	Aexpected.Elems()[0+2*Aexpected.Nrows()] = 1.0
+	Aexpected.Elems()[1+3*Aexpected.Nrows()] = 1.0
+	Aexpected.Elems()[4+4*Aexpected.Nrows()] = 1.0
+	colValuesSorted := Vector64{1.5, 2.5, 4.5, 4.5, 5.5}
+	mcv := &Matrix64WithColumnValues{A, colValues}
+	sort.Stable(mcv)
+	if Cmp64(colValues, colValuesSorted) != 0 {
+		fmt.Printf("%#v: expected colValues sorted", mcv)
 	}
 }
