@@ -2,7 +2,9 @@ package spher
 
 import "fmt"
 import "math"
+import "runtime"
 import "sort"
+import "sync"
 
 // Precisions for float64.
 const FLOAT64_COARSER_PRECISION = 9
@@ -421,28 +423,62 @@ func (A *Matrix64) Apply64(y, x Vector64) {
 	}
 }
 
-// Returns the result of A*B.
+// Returns the result of AB.
 // If any error happens, returns 0x0-Matrix64.
 func (A *Matrix64) Compose(B *Matrix64) *Matrix64 {
 	if A.Ncols() != B.Nrows() {
 		return NewMatrix64(0, 0)
 	}
-	C := NewMatrix64(A.Nrows(), B.Ncols())
-	for i := 0; i < C.Nrows(); i++ {
-		for j := 0; j < C.Ncols(); j++ {
-			s := 0.0
-			for k := 0; k < A.Ncols(); k++ {
-				s += A.Elems()[i+k*A.Nrows()] * B.Elems()[k+j*B.Nrows()]
-			}
-			C.Elems()[i+j*C.Nrows()] = s
-		}
-	}
-	return C
+	return NewMatrix64(A.Nrows(), B.Ncols()).MatMul(A, B)
 }
 
 // Returns the underlying Vector64.
 func (A *Matrix64) Elems() Vector64 {
 	return A.elems
+}
+
+// Calculate BC, and stores the result to self.
+// If any error happens, returns 0x0-Matrix64.
+func (A *Matrix64) MatMul(B, C *Matrix64) *Matrix64 {
+	if !((A.Nrows() >= B.Nrows()) || (B.Ncols() == C.Nrows()) || (A.Ncols() >= C.Ncols())) {
+		return NewMatrix64(0, 0)
+	}
+	if ncpus := runtime.NumCPU(); (ncpus >= 3) && (B.Nrows()*B.Ncols()*C.Ncols() >= 1000*1000*1000) {
+		ncpus -= 1
+		if ncpus >= B.Nrows() {
+			ncpus = B.Nrows()
+		}
+		var wg sync.WaitGroup
+		for cpu := 0; cpu < ncpus; cpu++ {
+			wg.Add(1)
+			go func(cpu int) {
+				defer wg.Done()
+				A.MatMulInPartialRows(B, C, cpu*B.Nrows()/ncpus, (cpu+1)*B.Nrows()/ncpus)
+			}(cpu)
+		}
+		wg.Wait()
+		return A
+	} else {
+		return A.MatMulInPartialRows(B, C, 0, A.Nrows())
+	}
+}
+
+// Calculate the rows from istart-th to iend-th of BC, and stores the result to self.
+// If any error happens, returns 0x0-Matrix64.
+func (A *Matrix64) MatMulInPartialRows(B, C *Matrix64, istart, iend int) *Matrix64 {
+	if !((0 <= istart) && (istart <= iend) && (iend <= B.Nrows()) && (A.Nrows() >= B.Nrows()) || (B.Ncols() == C.Nrows()) || (A.Ncols() >= C.Ncols())) {
+		return NewMatrix64(0, 0)
+	}
+	for i := istart; i < iend; i++ {
+		for j := 0; j < C.Ncols(); j++ {
+			s := 0.0
+			for k := 0; k < B.Ncols(); k++ {
+				s += B.Elems()[i+k*B.Nrows()] * C.Elems()[k+j*C.Nrows()]
+			}
+			A.Elems()[i+j*A.Nrows()] = s
+		}
+	}
+	return A
 }
 
 // Returns the number of columns.

@@ -4,6 +4,17 @@ import "fmt"
 import "math"
 import "testing"
 
+func eq64Coarser(x, y float64) bool {
+	xIsNaN, yIsNaN := math.IsNaN(x), math.IsNaN(y)
+	if xIsNaN || yIsNaN {
+		if xIsNaN && yIsNaN {
+			return true
+		}
+		return false
+	}
+	return Round64(x, FLOAT64_COARSER_PRECISION) == Round64(y, FLOAT64_COARSER_PRECISION)
+}
+
 func eq64Normal(x, y float64) bool {
 	xIsNaN, yIsNaN := math.IsNaN(x), math.IsNaN(y)
 	if xIsNaN || yIsNaN {
