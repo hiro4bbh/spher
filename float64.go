@@ -9,7 +9,7 @@ import "sync"
 // Precisions for float64.
 const (
 	FLOAT64_COARSER_PRECISION = 9
-	FLOAT64_NORMAL_PRECISION = 12
+	FLOAT64_NORMAL_PRECISION  = 12
 )
 
 // This can be get as follows: math.Float64Bits(math.NaN()).
@@ -452,7 +452,7 @@ func (A *Matrix64) Elems() Vector64 {
 // Calculate BC, and stores the result to self.
 // If any error happens, returns 0x0-Matrix64.
 func (A *Matrix64) MatMul(B, C *Matrix64) *Matrix64 {
-	if !((A.Nrows() >= B.Nrows()) || (B.Ncols() == C.Nrows()) || (A.Ncols() >= C.Ncols())) {
+	if !((A.Nrows() >= B.Nrows()) && (B.Ncols() == C.Nrows()) && (A.Ncols() >= C.Ncols())) {
 		return NewMatrix64(0, 0)
 	}
 	if ncpus := runtime.NumCPU(); (ncpus >= 3) && (B.Nrows()*B.Ncols()*C.Ncols() >= 1000*1000*1000) {
@@ -478,7 +478,7 @@ func (A *Matrix64) MatMul(B, C *Matrix64) *Matrix64 {
 // Calculate the rows from istart-th to iend-th of BC, and stores the result to self.
 // If any error happens, returns 0x0-Matrix64.
 func (A *Matrix64) MatMulInPartialRows(B, C *Matrix64, istart, iend int) *Matrix64 {
-	if !((0 <= istart) && (istart <= iend) && (iend <= B.Nrows()) && (A.Nrows() >= B.Nrows()) || (B.Ncols() == C.Nrows()) || (A.Ncols() >= C.Ncols())) {
+	if !((0 <= istart) && (istart <= iend) && (iend <= B.Nrows()) && (A.Nrows() >= B.Nrows()) && (B.Ncols() == C.Nrows()) && (A.Ncols() >= C.Ncols())) {
 		return NewMatrix64(0, 0)
 	}
 	for i := istart; i < iend; i++ {
@@ -534,7 +534,7 @@ func (A *Matrix64) T() SparseMatrix64 {
 
 // Matrix64WithColumnValues is a type for sorting the columns of A with ColValues.
 type Matrix64WithColumnValues struct {
-	A *Matrix64
+	A         *Matrix64
 	ColValues Vector64
 }
 
@@ -551,5 +551,5 @@ func (mcv *Matrix64WithColumnValues) Less(i, j int) bool {
 // For sort.Interface.
 func (mcv *Matrix64WithColumnValues) Swap(i, j int) {
 	mcv.ColValues[i], mcv.ColValues[j] = mcv.ColValues[j], mcv.ColValues[i]
-	Swap64(mcv.A.SlicedColumns(i,1).Elems(), mcv.A.SlicedColumns(j, 1).Elems())
+	Swap64(mcv.A.SlicedColumns(i, 1).Elems(), mcv.A.SlicedColumns(j, 1).Elems())
 }
