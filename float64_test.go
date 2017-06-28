@@ -199,14 +199,14 @@ func TestAugmentedSparseMatrix64(t *testing.T) {
 	}
 }
 
-func TestSymmetrizedMatrix64(t *testing.T) {
+func TestSymmetrize64(t *testing.T) {
 	A := NewCSRMatrix64FromRowMap(4, 5, map[int]map[int]float64{
 		0: map[int]float64{2: 1.0},
 		2: map[int]float64{1: 2.0, 3: 3.0},
 	})
 	denseA := NewMatrix64FromSparseMatrix64(A)
 	tdenseAdenseA := denseA.T().(*Matrix64).Compose(denseA)
-	tAA := &SymmetrizedMatrix64{A}
+	tAA := Symmetrize64(A)
 	dense_tAA := NewMatrix64FromSparseMatrix64(tAA)
 	if !eqMatrix64Normal(tdenseAdenseA, dense_tAA) {
 		t.Fatalf("unexpected t(dense(A))dense(A) != dense(t(A)A): t(dense(A))dense(A)=%#v,\ndense(t(A)*A)=%#v", tdenseAdenseA, dense_tAA)

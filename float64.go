@@ -212,6 +212,11 @@ type SymmetrizedMatrix64 struct {
 	a SparseMatrix64
 }
 
+// Symmetrizes SparseMatrix64 A, that is, returns t(A)A.
+func Symmetrize64(A SparseMatrix64) SparseMatrix64 {
+	return &SymmetrizedMatrix64{A}
+}
+
 // Applies self to Vector64 x, and stores the result to Vector64 y.
 // If any error happens, fill Vector64 y with float64 NaN.
 func (A *SymmetrizedMatrix64) Apply64(y, x Vector64) {
