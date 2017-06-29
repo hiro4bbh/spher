@@ -299,6 +299,27 @@ func TestMatrix64(t *testing.T) {
 	if expected, got := "spher.Matrix64(nrows:4, ncols:5)", fmt.Sprintf("%#v", *A); expected != got {
 		t.Errorf("fmt.Sprintf(\"%%#v\", Matrix64): expected %#v, but got %#v", expected, got)
 	}
+	Aclone := A.Clone()
+	if expected, got := A.Nrows(), Aclone.Nrows(); expected != got {
+		t.Errorf("%#v.Clone().Nrows(): expected %d, but got %d", A, expected, got)
+	}
+	if expected, got := A.Ncols(), Aclone.Ncols(); expected != got {
+		t.Errorf("%#v.Clone().Ncols(): expected %d, but got %d", A, expected, got)
+	}
+	if Cmp64(A.Elems(), Aclone.Elems()) != 0 {
+		t.Errorf("A=%#v, but got %#v.Clone()=%#v", A, A)
+	}
+	tmp0, tmpclone0 := A.Elems()[0], Aclone.Elems()[0]
+	A.Elems()[0] = 1.0
+	if expected, got := tmpclone0, Aclone.Elems()[0]; expected != got {
+		t.Errorf("Changes of the original Matrix64 should not affect its clones")
+	}
+	tmp1 := A.Elems()[1]
+	Aclone.Elems()[1] = 10.0
+	if expected, got := tmp1, A.Elems()[1]; expected != got {
+		t.Errorf("Changes of a clone Matrix64 should not affect the original")
+	}
+	A.Elems()[0] = tmp0
 	ty, tx := make(Vector64, A.Nrows()), make(Vector64, A.Ncols())
 	for i := 0; i < A.Nrows(); i++ {
 		for j := 0; j < A.Ncols(); j++ {

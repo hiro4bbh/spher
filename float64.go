@@ -440,6 +440,18 @@ func (A *Matrix64) Apply64(y, x Vector64) {
 	}
 }
 
+// Returns a clone of Vector64 x.
+// A clone is not affected by changes on x, and x is not affected by its clones.
+func (A *Matrix64) Clone() *Matrix64 {
+	elems := make(Vector64, len(A.elems))
+	copy(elems, A.elems)
+	return &Matrix64{
+		elems: elems,
+		nrows: A.nrows,
+		ncols: A.ncols,
+	}
+}
+
 // Returns the result of AB.
 // If any error happens, returns 0x0-Matrix64.
 func (A *Matrix64) Compose(B *Matrix64) *Matrix64 {
