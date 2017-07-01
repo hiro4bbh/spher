@@ -131,6 +131,14 @@ func (x Vector64) Madd(alpha float64, y Vector64) Vector64 {
 	return x
 }
 
+// Multiply-copy Vector64 x by float64 alpha and Vector64 y, that is, alpha*y.
+func (x Vector64) Mcopy(alpha float64, y Vector64) Vector64 {
+	for i := 0; i < len(x); i++ {
+		x[i] = alpha * y[i]
+	}
+	return x
+}
+
 // Multiply Vector64 x by float64 y.
 func (x Vector64) Mul(y float64) Vector64 {
 	for i := 0; i < len(x); i++ {

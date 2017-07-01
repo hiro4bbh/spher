@@ -155,6 +155,20 @@ func TestVector64Madd(t *testing.T) {
 	test(Vector64{}, Vector64{}, -2.0, Vector64{})
 }
 
+func TestVector64Mcopy(t *testing.T) {
+	test := func(expected Vector64, x Vector64, alpha float64, y Vector64) {
+		if got := x.Clone().Mcopy(alpha, y); !eqVector64Normal(expected, got) {
+			t.Errorf("%#v.Mcopy(%f, %#v): expected %#v, but got %#v", x, alpha, y, expected, got)
+		}
+	}
+	test(Vector64{6.0, 4.0, 2.0}, Vector64{1.0, 2.0, 3.0}, 2.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{0.0, 0.0, 0.0}, Vector64{1.0, 2.0, 3.0}, 0.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{-6.0, -4.0, -2.0}, Vector64{1.0, 2.0, 3.0}, -2.0, Vector64{3.0, 2.0, 1.0})
+	test(Vector64{}, Vector64{}, 2.0, Vector64{})
+	test(Vector64{}, Vector64{}, 0.0, Vector64{})
+	test(Vector64{}, Vector64{}, -2.0, Vector64{})
+}
+
 func TestVector64Mul(t *testing.T) {
 	test := func(expected Vector64, x Vector64, y float64) {
 		if got := x.Clone().Mul(y); !eqVector64Normal(expected, got) {
